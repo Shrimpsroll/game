@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Infinity Dimensions</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="news-ticker-container">
+        <div id="news-ticker" class="news-ticker">Connecting to Global News Network...</div>
+    </div>
+
+    <div class="header">
+        <h1>Matter: <span id="matter-display">10</span></h1>
+        <h3 id="pp-header" class="hidden" style="color: #0ff;">Prestige Points: <span id="pp-display">0</span></h3>
+    </div>
+
+    <div class="tickspeed-container" id="tickspeed-container">
+        <p>Tick Interval: <span id="tickspeed-display">5.00</span>s <span id="tickspeed-bonus-text" style="color:#0f0;"></span></p>
+        <button id="buy-tickspeed">Upgrade Tickspeed (-0.25s) (Cost: <span id="tickspeed-cost">1000</span>)</button>
+        <div class="tick-bar-bg"><div id="tick-bar"></div></div>
+        <p id="tickspeed-locked-msg" style="color: #888; display: none;">Buy Dimension 2 to unlock Tickspeed.</p>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="dimensions">Dimensions</button>
+        <button class="tab-btn" data-tab="bank">Bank</button>
+        <button class="tab-btn" data-tab="prestige">Big Crunch</button>
+        <button class="tab-btn" data-tab="prestige-shop">Prestige Shop</button>
+        <button class="tab-btn" data-tab="autobuyers">Autobuyers</button>
+        <button class="tab-btn" data-tab="stats">Stats</button>
+        <button class="tab-btn" data-tab="options">Options</button>
+    </div>
+
+    <div id="dimensions" class="tab-content active">
+        <div class="soft-resets">
+            <button id="btn-dim-boost" style="display: none;">
+                Dimension Boost (<span id="boost-count">0</span>)<br>
+                <span style="font-size: 0.85em; color: #0ff;">Effect: x<span id="boost-mult">1</span> to all Dimensions</span><br>
+                <span id="boost-req" style="font-size: 0.8em; color:#aaa;">Requires 20 Dim 4</span>
+            </button>
+            <button id="btn-galaxy" style="display: none;">
+                Antimatter Galaxy (<span id="galaxy-count">0</span>)<br>
+                <span style="font-size: 0.85em; color: #0ff;">Effect: +<span id="galaxy-effect">0</span>% Tickspeed Reduction</span><br>
+                <span id="galaxy-req" style="font-size: 0.8em; color:#aaa;">Requires 80 Dim 8</span>
+            </button>
+        </div>
+        <hr style="border-color: #444;" id="resets-divider">
+        <div id="dimensions-container"></div>
+    </div>
+
+    <div id="prestige" class="tab-content">
+        <h2>The Universe is Collapsing</h2>
+        <p>Crunch your universe to gain <strong>Prestige Points (PP)</strong>.</p>
+        <p>Prestige requirements scale exponentially by 100,000x per crunch.</p>
+        <p style="color: #0aa;">(Requires <span id="crunch-req-display">1e30</span> Matter)</p>
+        <button id="prestige-btn" disabled>Big Crunch for <span id="crunch-gain">0</span> PP</button>
+    </div>
+
+    <div id="prestige-shop" class="tab-content">
+        <h2>Prestige Upgrades</h2>
+        <div class="upgrade-grid" id="upgrade-container"></div>
+        <hr style="border-color: #444; margin: 20px 0;">
+        <h2>Rebuyable Upgrades</h2>
+        <div class="upgrade-grid" id="rebuyable-container"></div>
+    </div>
+
+    <div id="autobuyers" class="tab-content">
+        <h2>Automation</h2>
+        <div id="autobuyer-container"></div>
+    </div>
+
+    <div id="bank" class="tab-content">
+        <h2>Interdimensional Bank</h2>
+        <p>Deposited: <span id="bank-amount">0</span> Matter</p>
+        <p style="color: #aaa; font-size: 0.9em;">Interest: <span id="bank-interest-rate">1.0</span>% per tick. Withdrawal Tax: 15%</p>
+        <div class="bank-controls">
+            <button id="btn-dep-half">Deposit Half</button>
+            <button id="btn-dep-all">Deposit All</button>
+        </div>
+        <div class="bank-controls">
+            <button id="btn-with-half">Withdraw Half (Taxed)</button>
+            <button id="btn-with-all">Withdraw All (Taxed)</button>
+        </div>
+    </div>
+
+    <div id="stats" class="tab-content">
+        <h2>Statistics</h2>
+        <p>Total Playtime: <span id="stat-playtime">0</span> seconds</p>
+        <p>Big Crunches: <span id="stat-prestiges">0</span></p>
+    </div>
+
+    <div id="options" class="tab-content">
+        <h2>Global News Ticker</h2>
+        <input type="text" id="news-input" placeholder="Write a broadcast message..." maxlength="80" style="width: 70%; margin-bottom: 10px;">
+        <button id="btn-submit-news">Broadcast News</button>
+        <p id="news-cooldown-msg" style="color: #aaa; font-size: 0.85em;"></p>
+
+        <hr style="border-color: #444; margin: 20px 0;">
+        <h2>Cloud Storage</h2>
+        <button id="btn-save">Force Cloud Save</button>
+        <button id="btn-load">Force Cloud Load</button>
+        
+        <hr style="border-color: #444; margin: 20px 0;">
+        <h2>Share Save</h2>
+        <p>Your Code: <strong id="my-share-code" style="color: #0f0;">Generating...</strong></p>
+        <input type="text" id="share-code-input" placeholder="Enter a friend's code">
+        <button id="btn-load-code">Load Shared Code</button>
+        
+        <hr style="border-color: #444; margin: 20px 0;">
+        <h2>Danger Zone</h2>
+        <button id="btn-hard-reset" style="background: #800; border-color: #f00;">HARD RESET GAME</button>
+    </div>
+
+    <div id="offline-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Welcome Back!</h2>
+            <p id="offline-time-msg">You were gone for <span id="offline-time-text">0m</span>.</p>
+            <hr style="border-color: #444; margin: 15px 0;">
+            <p>Ticks Simulated: <span id="offline-ticks">0</span></p>
+            <p>Matter Generated: <span id="offline-matter" style="color: #0f0; font-weight: bold;">0</span></p>
+            <button id="btn-close-modal" style="margin-top: 15px; background: #28a745; width: 100%;">Awesome</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/break_infinity.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/state.js"></script>
+    <script src="js/format.js"></script>
+    <script src="js/news.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/cloud.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
