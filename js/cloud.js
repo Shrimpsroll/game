@@ -31,7 +31,7 @@ async function cloudLoad() {
         .from('user_saves')
         .select('save_data')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle(); // FIX: Tells Supabase not to throw a 406 error if the user is brand new
 
     if (!error && data && data.save_data) cloudData = data.save_data;
 
@@ -48,7 +48,7 @@ async function cloudLoad() {
 }
 
 async function cloudSave() {
-    await supabaseClient
+    const { error } = await supabaseClient
         .from('user_saves')
         .upsert({ 
             user_id: userId, 
@@ -56,7 +56,74 @@ async function cloudSave() {
             save_data: JSON.parse(serializeState()),
             share_code: myShareCode,
             is_cheater: window.isCheater || false
-        });
+        }, { onConflict: 'user_id' }); 
+        
+    // SELF-HEALING: If share code collided (e.g. from a partial reset), generate a new one and retry
+    if (error && error.code === '23505' && error.message.includes('share_code')) {
+        console.warn("Share code collision detected. Generating new code and retrying save...");
+        myShareCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        localStorage.setItem('incremental_share_code', myShareCode);
+        
+        let elShareCode = document.getElementById('my-share-code');
+        if (elShareCode) elShareCode.innerText = myShareCode;
+        
+        return cloudSave(); // Recursively retry the save with the new code
+    }
+}
+
+// --- LEADERBOARD LOGIC ---
+async function submitToLeaderboard() {
+    let nickInput = document.getElementById('player-nickname').value.trim();
+    let finalNick = nickInput !== "" ? nickInput : 'Anonymous';
+    localStorage.setItem('incremental_nickname', finalNick);
+
+    const { error } = await supabaseClient
+        .from('user_saves')
+        .upsert({ 
+            user_id: userId, 
+            matter_exponent: state.matter.e, 
+            save_data: JSON.parse(serializeState()),
+            share_code: myShareCode,
+            is_cheater: window.isCheater || false,
+            nickname: finalNick,
+            is_public: true 
+        }, { onConflict: 'user_id' }); 
+
+    // SELF-HEALING for Leaderboard submissions
+    if (error && error.code === '23505' && error.message.includes('share_code')) {
+        console.warn("Share code collision detected. Generating new code and retrying submission...");
+        myShareCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        localStorage.setItem('incremental_share_code', myShareCode);
+        
+        let elShareCode = document.getElementById('my-share-code');
+        if (elShareCode) elShareCode.innerText = myShareCode;
+        
+        return submitToLeaderboard(); // Recursively retry
+    }
+
+    if (error) {
+        console.error("Submission error:", error);
+        alert("Failed to submit score to the leaderboard.");
+    } else {
+        alert("Score successfully submitted to the Leaderboard!");
+        if (typeof updateLeaderboardUI === "function") updateLeaderboardUI();
+    }
+}
+
+async function fetchLeaderboardData() {
+    const { data, error } = await supabaseClient
+        .from('user_saves')
+        .select('nickname, matter_exponent')
+        .eq('is_cheater', false)
+        .eq('is_public', true)
+        .order('matter_exponent', { ascending: false })
+        .limit(10);
+
+    if (error) {
+        console.error("Leaderboard fetch error:", error);
+        return [];
+    }
+    return data;
 }
 
 async function loadSharedCode() {
@@ -67,7 +134,7 @@ async function loadSharedCode() {
         .from('user_saves')
         .select('save_data')
         .eq('share_code', codeToLoad)
-        .single();
+        .maybeSingle(); // FIX: Prevents 406 error if they type an invalid share code
 
     if (data && data.save_data) {
         deserializeState(data.save_data);
@@ -122,3 +189,4 @@ async function submitNewsBroadcast() {
         fetchGlobalNews(); // Grab the new message immediately
     }
 }
+

@@ -29,6 +29,7 @@
         <button class="tab-btn" data-tab="prestige-shop">Prestige Shop</button>
         <button class="tab-btn" data-tab="autobuyers">Autobuyers</button>
         <button class="tab-btn" data-tab="stats">Stats</button>
+        <button class="tab-btn" data-tab="leaderboard">Leaderboard</button>
         <button class="tab-btn" data-tab="options">Options</button>
     </div>
 
@@ -73,7 +74,7 @@
     <div id="bank" class="tab-content">
         <h2>Interdimensional Bank</h2>
         <p>Deposited: <span id="bank-amount">0</span> Matter</p>
-        <p style="color: #aaa; font-size: 0.9em;">Interest: <span id="bank-interest-rate">1.0</span>% per tick. Withdrawal Tax: 15%</p>
+        <p style="color: #aaa; font-size: 0.9em;">Interest: <span id="bank-interest-rate">1.0</span>% per tick. Withdrawal Tax: <span id="bank-tax-rate">15</span>%</p>
         <div class="bank-controls">
             <button id="btn-dep-half">Deposit Half</button>
             <button id="btn-dep-all">Deposit All</button>
@@ -86,8 +87,53 @@
 
     <div id="stats" class="tab-content">
         <h2>Statistics</h2>
-        <p>Total Playtime: <span id="stat-playtime">0</span> seconds</p>
-        <p>Big Crunches: <span id="stat-prestiges">0</span></p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: left; background: #222; padding: 20px; border-radius: 8px; border: 1px solid #444;">
+            <p><strong>Total Playtime:</strong> <br><span id="stat-playtime" style="color:#0ff;">0s</span></p>
+            <p><strong>Current Universe Time:</strong> <br><span id="stat-current-time" style="color:#0ff;">0s</span></p>
+            
+            <p><strong>Total Matter Produced:</strong> <br><span id="stat-total-matter" style="color:#0f0;">0</span></p>
+            <p><strong>Peak Matter Reached:</strong> <br><span id="stat-peak-matter" style="color:#0f0;">0</span></p>
+            
+            <p><strong>Total Prestige Points:</strong> <br><span id="stat-total-pp" style="color:#f0f;">0</span></p>
+            <p><strong>Big Crunches:</strong> <br><span id="stat-prestiges" style="color:#f0f;">0</span></p>
+            
+            <p><strong>All-Time Dim Boosts:</strong> <br><span id="stat-total-boosts" style="color:#ff0;">0</span></p>
+            <p><strong>All-Time Galaxies:</strong> <br><span id="stat-total-galaxies" style="color:#ff0;">0</span></p>
+            
+            <p><strong>Dimensions Purchased:</strong> <br><span id="stat-dims-bought" style="color:#aaa;">0</span></p>
+            <p><strong>Tickspeed Upgrades:</strong> <br><span id="stat-ticks-bought" style="color:#aaa;">0</span></p>
+            
+            <p><strong>Bank Taxes Paid:</strong> <br><span id="stat-tax-paid" style="color:#f00;">0</span></p>
+            <p><strong>Offline Time Simulated:</strong> <br><span id="stat-offline-time" style="color:#888;">0s</span></p>
+        </div>
+    </div>
+    <div id="leaderboard" class="tab-content">
+        <h2>Top Universes</h2>
+        
+        <div style="background: #222; padding: 15px; border-radius: 5px; margin-bottom: 20px; border: 1px solid #444;">
+            <h3>Join the Leaderboard</h3>
+            <p style="font-size: 0.9em; color: #aaa;">Your score is private until you submit it.</p>
+            <input type="text" id="player-nickname" placeholder="Enter your nickname" maxlength="16" style="margin-right: 10px;">
+            <button id="btn-submit-leaderboard" style="background: #28a745; border-color: #218838; font-weight: bold;">Submit Current Score</button>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <p style="margin: 0;">Displaying the top 10 players.</p>
+            <button id="btn-refresh-leaderboard">Refresh</button>
+        </div>
+        
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Nickname</th>
+                    <th>Matter Exponent</th>
+                </tr>
+            </thead>
+            <tbody id="leaderboard-body">
+                <tr><td colspan="3">Loading...</td></tr>
+            </tbody>
+        </table>
     </div>
 
     <div id="options" class="tab-content">

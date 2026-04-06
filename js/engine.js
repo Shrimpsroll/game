@@ -11,15 +11,21 @@ window.dev = {
 
 function getTickInterval() {
     let baseGalStrength = state.prestigeUpgrades.upg5 ? 0.03 : 0.02; 
-    let reductionPerLevel = 0.25 + (baseGalStrength * state.galaxies); 
+    let extraTickBoost = state.prestigeUpgrades.upg8 ? 0.05 : 0; 
+    let reductionPerLevel = 0.25 + extraTickBoost + (baseGalStrength * state.galaxies); 
+    
     let rawInterval = 5.0 - (state.tickspeed.level * reductionPerLevel);
-    return Math.max(0.05, rawInterval) * 1000; 
+    // UPDATED: Max tickspeed is now 0.1s (100ms)
+    return Math.max(0.1, rawInterval) * 1000; 
 }
 
 function getBonusTickspeedMultiplier() {
     let baseGalStrength = state.prestigeUpgrades.upg5 ? 0.03 : 0.02;
-    let reductionPerLevel = 0.25 + (baseGalStrength * state.galaxies);
-    let levelsToMaxOut = (5.0 - 0.05) / reductionPerLevel;
+    let extraTickBoost = state.prestigeUpgrades.upg8 ? 0.05 : 0;
+    let reductionPerLevel = 0.25 + extraTickBoost + (baseGalStrength * state.galaxies);
+    
+    // UPDATED: Bonus kicks in after hitting 0.1s
+    let levelsToMaxOut = (5.0 - 0.1) / reductionPerLevel;
     
     if (state.tickspeed.level > levelsToMaxOut) {
         let excessLevels = state.tickspeed.level - levelsToMaxOut;
@@ -32,6 +38,11 @@ function getGlobalDimMultiplier() {
     let boostPower = state.prestigeUpgrades.upg6 ? 2.5 : 2.0;
     let mult = new Decimal(boostPower).pow(state.dimBoosts);
     if (state.prestigeUpgrades.upg2) mult = mult.mul(2);
+    
+    if (state.prestigeUpgrades.upg7) {
+        mult = mult.mul(Math.max(1, state.galaxies * 3));
+    }
+    
     let rebuy1Mult = new Decimal(2).pow(state.prestigeUpgrades.rebuy1.level);
     return mult.mul(rebuy1Mult);
 }
@@ -42,9 +53,15 @@ function getVisualMultiplier(index) {
     let bonusTickMult = getBonusTickspeedMultiplier();
     let total = dim.mult.mul(globalMult).mul(bonusTickMult);
     
-    if (index === 0 && state.prestigeUpgrades.upg1) {
-        total = total.mul(Math.max(1, state.prestigePoints.toNumber()));
+    if (index === 0) {
+        if (state.prestigeUpgrades.upg1) total = total.mul(Math.max(1, state.prestigePoints.toNumber()));
+        if (state.prestigeUpgrades.upg3) total = total.mul(3); 
+        if (state.prestigeUpgrades.upg9) total = total.mul(Math.max(1, state.dimBoosts * 5)); 
+        
+        let rebuy3MatterMult = new Decimal(5).pow(state.prestigeUpgrades.rebuy3.level); 
+        total = total.mul(rebuy3MatterMult);
     }
+    
     return total;
 }
 
@@ -54,17 +71,17 @@ function buyDimension(index) {
         state.matter = state.matter.sub(dim.cost);
         dim.amount = dim.amount.add(1);
         dim.bought += 1;
-        dim.cost = dim.cost.mul(dim.baseCostMult);
+        dim.cost = dim.cost.mul(dim.baseCostMult).floor();
         
-        // NERFED MILESTONE: Now x2.5
         if (dim.bought % 10 === 0) {
-            dim.mult = dim.mult.mul(2.5);
+            dim.mult = dim.mult.mul(2.5); 
             dim.cost = dim.cost.mul(100); 
             logGame(`Dimension ${dim.id} hit milestone ${dim.bought}! Power x2.5, Cost x100.`);
         } else {
             logGame(`Bought Dimension ${dim.id}`);
         }
         
+        state.stats.totalDimsBought += 1; 
         if (typeof updateUI === 'function') updateUI();
     }
 }
@@ -75,6 +92,7 @@ function buyTickspeed() {
         state.matter = state.matter.sub(state.tickspeed.cost);
         state.tickspeed.level += 1;
         state.tickspeed.cost = state.tickspeed.cost.mul(10);
+        state.stats.totalTicksBought += 1; 
         logGame(`Upgraded Tickspeed to Level ${state.tickspeed.level}`);
         if (typeof updateUI === 'function') updateUI();
     }
@@ -94,7 +112,6 @@ function resetForBoostOrGalaxy() {
 
 function getBoostReq() {
     let reqDim = Math.min(3 + state.dimBoosts, 7); 
-    // FIXED SCALING: Once you hit the 8th dimension (boost 4), the amount goes up by 15 every time.
     let reqAmt = state.dimBoosts >= 4 ? 20 + (15 * (state.dimBoosts - 4)) : 20;
     return { dimIndex: reqDim, amount: reqAmt };
 }
@@ -103,6 +120,7 @@ function buyDimBoost() {
     let req = getBoostReq();
     if (state.dimensions[req.dimIndex].amount.gte(req.amount)) {
         state.dimBoosts += 1;
+        state.stats.totalDimBoosts += 1; 
         logGame(`DIMENSION BOOST acquired! Total: ${state.dimBoosts}`);
         resetForBoostOrGalaxy();
         renderDimensions();
@@ -114,6 +132,7 @@ function buyGalaxy() {
     if (state.dimensions[7].amount.gte(reqAmt)) {
         state.galaxies += 1;
         state.dimBoosts = 0; 
+        state.stats.totalGalaxies += 1; 
         logGame(`ANTIMATTER GALAXY acquired! Total: ${state.galaxies}`);
         resetForBoostOrGalaxy();
         renderDimensions();
@@ -128,7 +147,9 @@ function getCrunchGain() {
     let req = getCrunchRequirement();
     if (state.matter.lt(req)) return new Decimal(0);
     
-    let gain = state.matter.div(req).pow(0.5).floor();
+    let exponent = state.prestigeUpgrades.upg10 ? 0.55 : 0.5;
+    let gain = state.matter.div(req).pow(exponent).floor();
+    
     if (state.prestigeUpgrades.upg3) gain = gain.mul(2); 
     let rebuy2Mult = new Decimal(2).pow(state.prestigeUpgrades.rebuy2.level);
     return gain.mul(rebuy2Mult);
@@ -139,6 +160,8 @@ function prestige() {
     if (gain.gt(0)) {
         state.prestigePoints = state.prestigePoints.add(gain);
         state.stats.prestiges += 1;
+        state.stats.totalPPEarned = state.stats.totalPPEarned.add(gain); 
+        state.stats.timeInCurrentUniverseMs = 0; 
         state.galaxies = 0;
         state.dimBoosts = 0;
         logGame(`BIG CRUNCH! Gained ${format(gain)} Prestige Points.`);
@@ -200,21 +223,28 @@ function processGameTick() {
     
     let dim1UpgBonus = state.prestigeUpgrades.upg1 ? Math.max(1, state.prestigePoints.toNumber()) : 1;
     let upg3MatterMult = state.prestigeUpgrades.upg3 ? 3 : 1;
+    let upg9MatterMult = state.prestigeUpgrades.upg9 ? Math.max(1, state.dimBoosts * 5) : 1;
+    let rebuy3MatterMult = new Decimal(5).pow(state.prestigeUpgrades.rebuy3.level);
 
     for (let i = state.dimensions.length - 1; i >= 0; i--) {
         let dim = state.dimensions[i];
         let production = dim.amount.mul(dim.mult).mul(globalMult).mul(bonusTickMult);
         
         if (i === 0) {
-            production = production.mul(dim1UpgBonus).mul(upg3MatterMult);
+            production = production.mul(dim1UpgBonus).mul(upg3MatterMult).mul(upg9MatterMult).mul(rebuy3MatterMult);
             state.matter = state.matter.add(production);
+            state.stats.totalMatterProduced = state.stats.totalMatterProduced.add(production); 
         } else {
             state.dimensions[i - 1].amount = state.dimensions[i - 1].amount.add(production);
         }
     }
 
+    if (state.matter.gt(state.stats.peakMatter)) {
+        state.stats.peakMatter = new Decimal(state.matter); 
+    }
+
     if (state.bank.deposited.gt(0)) {
-        let interestRate = state.prestigeUpgrades.upg4 ? 0.02 : 0.01;
+        let interestRate = state.prestigeUpgrades.upg4 ? 0.03 : 0.01;
         state.bank.deposited = state.bank.deposited.add(state.bank.deposited.mul(interestRate));
     }
 }
@@ -228,7 +258,6 @@ function simulateOfflineProgress(timeAwayMs) {
     if (ticksToSimulate <= 0) return;
     
     let startMatter = new Decimal(state.matter);
-    let startDims = state.dimensions.map(d => new Decimal(d.amount));
 
     console.log(`%c--- BACKGROUND SIMULATION START ---`, `color: #0f0; font-weight: bold;`);
     console.log(`Time Away: ${Math.floor(timeAwayMs / 1000)}s | Simulating: ${Math.floor(actualSimMs / 1000)}s`);
@@ -236,6 +265,11 @@ function simulateOfflineProgress(timeAwayMs) {
     for (let i = 0; i < ticksToSimulate; i++) processGameTick();
 
     state.tickProgressMs += (actualSimMs % currentInterval);
+    
+    state.stats.totalOfflineMs += actualSimMs; 
+    state.stats.totalPlaytimeMs += actualSimMs;
+    state.stats.timeInCurrentUniverseMs += actualSimMs;
+
     let gainedMatter = state.matter.sub(startMatter);
     console.log(`Ending Matter: ${format(state.matter)} (+${format(gainedMatter)})`);
 
@@ -244,10 +278,9 @@ function simulateOfflineProgress(timeAwayMs) {
     }
 }
 
-// FIXED GAME LOOP: Keeps polling while hidden without crashing or skipping
 function gameLoop() {
     if (document.hidden) {
-        setTimeout(gameLoop, UI_FPS); // Keep the heartbeat alive while backgrounded!
+        setTimeout(gameLoop, UI_FPS); 
         return; 
     }
 
@@ -264,6 +297,9 @@ function gameLoop() {
     window.justResumed = false;
     
     state.tickProgressMs += delta;
+    state.stats.totalPlaytimeMs += delta; 
+    state.stats.timeInCurrentUniverseMs += delta; 
+    
     let currentInterval = getTickInterval();
 
     while (state.tickProgressMs >= currentInterval) {
@@ -283,10 +319,17 @@ function executeDeposit(amt) {
     logGame(`Deposited ${format(amt)} into Bank`);
     updateUI();
 }
+
 function executeWithdrawal(amt) {
     if (amt.lte(0)) return;
+    let taxRate = state.prestigeUpgrades.upg4 ? 0.05 : 0.15; 
+    let taxAmount = amt.mul(taxRate);
+    let matterToGive = amt.sub(taxAmount);
+    
+    state.stats.totalBankTaxPaid = state.stats.totalBankTaxPaid.add(taxAmount); 
+    
     state.bank.deposited = state.bank.deposited.sub(amt);
-    state.matter = state.matter.add(amt.mul(0.85)); 
-    logGame(`Withdrew ${format(amt)} from Bank (15% Tax Applied)`);
+    state.matter = state.matter.add(matterToGive); 
+    logGame(`Withdrew ${format(amt)} from Bank (${taxRate * 100}% Tax Applied)`);
     updateUI();
 }

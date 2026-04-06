@@ -1,4 +1,4 @@
-console.log("%cWARNING: Do not paste code here or use window.dev unless you know exactly what you are doing. Doing so will permanently mark your account as a cheater on the global leaderboard.", "color: red; font-size: 16px; font-weight: bold; background: #222; padding: 10px; border: 2px solid red;");
+console.log("%cWARNING: Do not paste code here unless you know exactly what you are doing. Doing so will permanently mark your account as a cheater on the global leaderboard.", "color: red; font-size: 16px; font-weight: bold; background: #222; padding: 10px; border: 2px solid red;");
 
 // Background Tab Pausing & Resuming
 document.addEventListener("visibilitychange", () => {
@@ -70,8 +70,28 @@ safeListen('btn-load-code', 'click', () => {
 safeListen('btn-hard-reset', 'click', () => {
     if (confirm("Are you ABSOLUTELY sure? Wipe all local and cloud data?")) {
         state = getDefaultState();
+        
+        // Wipe all local storage keys associated with the game
         localStorage.removeItem('incremental_user_id');
+        localStorage.removeItem('incremental_share_code');
+        localStorage.removeItem('incremental_nickname');
+        
         cloudSave(); 
         location.reload();
     }
 });
+
+// Leaderboard Listeners
+safeListen('btn-submit-leaderboard', 'click', () => {
+    if (typeof submitToLeaderboard === 'function') submitToLeaderboard();
+});
+safeListen('btn-refresh-leaderboard', 'click', () => {
+    if (typeof updateLeaderboardUI === 'function') updateLeaderboardUI();
+});
+
+// Load saved nickname if it exists
+let savedNick = localStorage.getItem('incremental_nickname');
+if (savedNick) {
+    let nickEl = document.getElementById('player-nickname');
+    if (nickEl) nickEl.value = savedNick;
+}
