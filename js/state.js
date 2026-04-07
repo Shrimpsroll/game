@@ -1,5 +1,6 @@
 function getDefaultState() {
     return {
+        version: 1,
         matter: new Decimal(10),
         dimensions: [
             { id: 1, amount: new Decimal(0), bought: 0, cost: new Decimal(10), mult: new Decimal(1), baseCostMult: 1.5, reqBoost: 0 },
@@ -72,6 +73,13 @@ function deserializeState(jsonString) {
         let parsed = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
         let defaults = getDefaultState();
         
+        let saveVersion = parsed.version || 0;
+        
+        // --- MIGRATIONS ---
+        // If you ever need to change variables radically in the future, do it here.
+        // if (saveVersion < 2) { /* mutate parsed data to fit v2 */ }
+        
+        state.version = defaults.version;
         state.matter = new Decimal(parsed.matter || 10);
         state.dimBoosts = parsed.dimBoosts || 0;
         state.galaxies = parsed.galaxies || 0;

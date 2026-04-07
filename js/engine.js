@@ -84,15 +84,71 @@ function buyDimension(index) {
         dim.cost = dim.cost.mul(dim.baseCostMult).floor();
         
         if (dim.bought % 10 === 0) {
-            dim.mult = dim.mult.mul(2.5); 
+            dim.mult = dim.mult.mul(3.0); 
             dim.cost = dim.cost.mul(100); 
-            logGame(`Dimension ${dim.id} hit milestone ${dim.bought}! Power x2.5, Cost x100.`);
+            logGame(`Dimension ${dim.id} hit milestone ${dim.bought}! Power x3.0, Cost x100.`);
         } else {
             logGame(`Bought Dimension ${dim.id}`);
         }
         
         state.stats.totalDimsBought += 1; 
         if (typeof updateUI === 'function') updateUI();
+    }
+}
+
+function buyMaxDimension(index) {
+    let dim = state.dimensions[index];
+    if (state.matter.lt(dim.cost)) return;
+
+    let bulkBuyCount = 0;
+    let cost = dim.cost;
+    let matter = state.matter;
+
+    while (matter.gte(cost)) {
+        matter = matter.sub(cost);
+        cost = cost.mul(dim.baseCostMult).floor();
+        bulkBuyCount++;
+        if ((dim.bought + bulkBuyCount) % 10 === 0) {
+            cost = cost.mul(100);
+        }
+    }
+
+    if (bulkBuyCount > 0) {
+        state.matter = matter;
+        dim.amount = dim.amount.add(bulkBuyCount);
+        
+        let oldBought = dim.bought;
+        dim.bought += bulkBuyCount;
+        dim.cost = cost;
+        
+        let newMults = Math.floor(dim.bought / 10) - Math.floor(oldBought / 10);
+        if (newMults > 0) {
+            dim.mult = dim.mult.mul(new Decimal(3.0).pow(newMults));
+        }
+        
+        state.stats.totalDimsBought += bulkBuyCount;
+    }
+}
+
+function buyMaxTickspeed() {
+    if (state.dimensions[1].bought === 0) return;
+    let cost = state.tickspeed.cost;
+    if (state.matter.lt(cost)) return;
+    
+    let bulkBuyCount = 0;
+    let matter = state.matter;
+    
+    while (matter.gte(cost)) {
+        matter = matter.sub(cost);
+        cost = cost.mul(10);
+        bulkBuyCount++;
+    }
+    
+    if (bulkBuyCount > 0) {
+        state.matter = matter;
+        state.tickspeed.level += bulkBuyCount;
+        state.tickspeed.cost = cost;
+        state.stats.totalTicksBought += bulkBuyCount;
     }
 }
 
@@ -222,17 +278,23 @@ function toggleAutobuyer(id) {
 }
 
 function processAutobuyers() {
-    if (state.autobuyers.dim1.active) while (state.matter.gte(state.dimensions[0].cost)) buyDimension(0);
-    if (state.autobuyers.dim2.active) while (state.matter.gte(state.dimensions[1].cost)) buyDimension(1);
-    if (state.autobuyers.dim3?.active) while (state.matter.gte(state.dimensions[2].cost)) buyDimension(2);
-    if (state.autobuyers.dim4?.active) while (state.matter.gte(state.dimensions[3].cost)) buyDimension(3);
-    if (state.autobuyers.dim5?.active) while (state.matter.gte(state.dimensions[4].cost)) buyDimension(4);
-    if (state.autobuyers.dim6?.active) while (state.matter.gte(state.dimensions[5].cost)) buyDimension(5);
-    if (state.autobuyers.dim7?.active) while (state.matter.gte(state.dimensions[6].cost)) buyDimension(6);
-    if (state.autobuyers.dim8?.active) while (state.matter.gte(state.dimensions[7].cost)) buyDimension(7);
-    if (state.autobuyers.tick.active) while (state.matter.gte(state.tickspeed.cost)) buyTickspeed();
-    if (state.autobuyers.boost?.active) buyDimBoost();
-    if (state.autobuyers.galaxy?.active) buyGalaxy();
+    if (state.autobuyers.dim1.active) buyMaxDimension(0);
+    if (state.autobuyers.dim2.active) buyMaxDimension(1);
+    if (state.autobuyers.dim3?.active) buyMaxDimension(2);
+    if (state.autobuyers.dim4?.active) buyMaxDimension(3);
+    if (state.autobuyers.dim5?.active) buyMaxDimension(4);
+    if (state.autobuyers.dim6?.active) buyMaxDimension(5);
+    if (state.autobuyers.dim7?.active) buyMaxDimension(6);
+    if (state.autobuyers.dim8?.active) buyMaxDimension(7);
+    if (state.autobuyers.tick.active) buyMaxTickspeed();
+    if (state.autobuyers.boost?.active) {
+        let req = getBoostReq();
+        if (state.dimensions[req.dimIndex].amount.gte(req.amount)) buyDimBoost();
+    }
+    if (state.autobuyers.galaxy?.active) {
+        let reqAmt = 80 + (state.galaxies * 60);
+        if (state.dimensions[7].amount.gte(reqAmt)) buyGalaxy();
+    }
 }
 
 function processGameTick() {
@@ -273,7 +335,7 @@ function simulateOfflineProgress(timeAwayMs) {
     state.bank.timeSinceInterest += actualSimMs;
     while (state.bank.timeSinceInterest >= 60000) {
         if (state.bank.deposited.gt(0)) {
-            let interestRate = state.prestigeUpgrades.upg4 ? 0.03 : 0.01;
+            let interestRate = state.prestigeUpgrades.upg4 ? 0.05 : 0.02;
             let interest = state.bank.deposited.mul(interestRate);
             state.bank.deposited = state.bank.deposited.add(interest);
             state.stats.totalMatterProduced = state.stats.totalMatterProduced.add(interest);
@@ -314,6 +376,11 @@ function supernova() {
     let defaults = getDefaultState();
     state.matter = new Decimal(10);
     state.prestigePoints = new Decimal(0);
+    state.dimensions = defaults.dimensions;
+    state.stats.prestiges = 0;
+    state.tickspeed = defaults.tickspeed;
+    state.stats.totalMatterProduced = new Decimal(10);
+    state.stats.totalPPEarned = new Decimal(0);
     state.prestigeUpgrades = defaults.prestigeUpgrades;
     state.autobuyers = defaults.autobuyers;
     state.bank.deposited = new Decimal(0);
@@ -380,7 +447,7 @@ function gameLoop() {
     state.bank.timeSinceInterest += delta;
     while (state.bank.timeSinceInterest >= 60000) {
         if (state.bank.deposited.gt(0)) {
-            let interestRate = state.prestigeUpgrades.upg4 ? 0.03 : 0.01;
+            let interestRate = state.prestigeUpgrades.upg4 ? 0.05 : 0.02;
             let interest = state.bank.deposited.mul(interestRate);
             state.bank.deposited = state.bank.deposited.add(interest);
             state.stats.totalMatterProduced = state.stats.totalMatterProduced.add(interest);

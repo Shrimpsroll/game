@@ -36,7 +36,7 @@ function renderDimensions() {
                     <div class="milestone-container">
                         <div id="dim${index}-milestone-bar" class="milestone-bar"></div>
                     </div>
-                    <p style="font-size:0.75em; color:#888; margin-top: 3px;">Next x2.5 jump in: <span id="dim${index}-next-boost">10</span> buys</p>
+                    <p style="font-size:0.75em; color:#888; margin-top: 3px;">Next x3.0 jump in: <span id="dim${index}-next-boost">10</span> buys</p>
                 </div>
                 <div class="dim-actions">
                     <button id="buy-dim${index}">Buy (Cost: <span id="dim${index}-cost">${format(dim.cost)}</span>)</button>
@@ -64,7 +64,7 @@ function renderShop() {
             Matter Generation x3<br><br>${state.prestigeUpgrades.upg3 ? 'BOUGHT' : 'Cost: 5 PP'}
         </button>
         <button class="upgrade-btn ${state.prestigeUpgrades.upg4 ? 'bought' : ''}" onclick="buyUpgrade('upg4', 500)">
-            The Banker's Advantage (3% Interest, 5% Tax)<br><br>${state.prestigeUpgrades.upg4 ? 'BOUGHT' : 'Cost: 500 PP'}
+            The Banker's Advantage (5% Interest, 5% Tax)<br><br>${state.prestigeUpgrades.upg4 ? 'BOUGHT' : 'Cost: 500 PP'}
         </button>
         <button class="upgrade-btn ${state.prestigeUpgrades.upg5 ? 'bought' : ''}" onclick="buyUpgrade('upg5', 50)">
             Galaxies are 50% stronger<br><br>${state.prestigeUpgrades.upg5 ? 'BOUGHT' : 'Cost: 50 PP'}
@@ -169,6 +169,9 @@ function updateUI() {
         document.getElementById('buy-tickspeed').style.display = 'inline-block';
         document.getElementById('tickspeed-locked-msg').style.display = 'none';
         document.getElementById('buy-tickspeed').disabled = state.matter.lt(state.tickspeed.cost);
+        
+        let btnText = getTickInterval() <= 100 ? "(+20% Prod)" : "(-0.25s)";
+        document.getElementById('buy-tickspeed').innerHTML = `Upgrade Tickspeed ${btnText} (Cost: <span id="tickspeed-cost">${format(state.tickspeed.cost)}</span>)`;
     } else {
         document.getElementById('buy-tickspeed').style.display = 'none';
         document.getElementById('tickspeed-locked-msg').style.display = 'block';
@@ -241,7 +244,7 @@ function updateUI() {
     document.getElementById('crunch-gain').innerText = format(crunchGain);
     btnCrunch.disabled = state.matter.lt(crunchReq);
 
-    document.getElementById('bank-interest-rate').innerText = state.prestigeUpgrades.upg4 ? "3.0" : "1.0";
+    document.getElementById('bank-interest-rate').innerText = state.prestigeUpgrades.upg4 ? "5.0" : "2.0";
     document.getElementById('bank-tax-rate').innerText = state.prestigeUpgrades.upg4 ? "5" : "15";
     document.getElementById('bank-amount').innerText = format(state.bank.deposited);
 
