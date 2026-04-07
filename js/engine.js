@@ -4,10 +4,20 @@ function logGame(action) {
     console.log(`[LOG] ${new Date().toLocaleTimeString()} - ${action}`); 
 }
 
-window.dev = {
-    giveMatter: (eString) => { state.matter = state.matter.add(new Decimal(eString)); window.isCheater = true; updateUI(); },
-    givePP: (amount) => { state.prestigePoints = state.prestigePoints.add(amount); window.isCheater = true; updateUI(); },
-};
+let _devToolsWarned = false;
+Object.defineProperty(window, 'dev', {
+    get: function() {
+        window.isCheater = true;
+        if (!_devToolsWarned) {
+            console.warn("Dev tools accessed! Flagged as cheater.");
+            _devToolsWarned = true;
+        }
+        return {
+            giveMatter: (eString) => { state.matter = state.matter.add(new Decimal(eString)); updateUI(); },
+            givePP: (amount) => { state.prestigePoints = state.prestigePoints.add(amount); updateUI(); }
+        };
+    }
+});
 
 function getTickInterval() {
     let baseGalStrength = state.prestigeUpgrades.upg5 ? 0.03 : 0.02; 
@@ -155,9 +165,11 @@ function getCrunchGain() {
     return gain.mul(rebuy2Mult);
 }
 
-function prestige() {
+function prestige(forced = false) {
+    let isForced = forced === true; // Prevents UI click events from registering as true
     let gain = getCrunchGain();
-    if (gain.gt(0)) {
+    if (gain.gt(0) || isForced) {
+        if (gain.lte(0) && isForced) gain = new Decimal(1); // Give a pity point if forced prematurely
         state.prestigePoints = state.prestigePoints.add(gain);
         state.stats.prestiges += 1;
         state.stats.totalPPEarned = state.stats.totalPPEarned.add(gain); 
@@ -212,7 +224,15 @@ function toggleAutobuyer(id) {
 function processAutobuyers() {
     if (state.autobuyers.dim1.active) while (state.matter.gte(state.dimensions[0].cost)) buyDimension(0);
     if (state.autobuyers.dim2.active) while (state.matter.gte(state.dimensions[1].cost)) buyDimension(1);
+    if (state.autobuyers.dim3?.active) while (state.matter.gte(state.dimensions[2].cost)) buyDimension(2);
+    if (state.autobuyers.dim4?.active) while (state.matter.gte(state.dimensions[3].cost)) buyDimension(3);
+    if (state.autobuyers.dim5?.active) while (state.matter.gte(state.dimensions[4].cost)) buyDimension(4);
+    if (state.autobuyers.dim6?.active) while (state.matter.gte(state.dimensions[5].cost)) buyDimension(5);
+    if (state.autobuyers.dim7?.active) while (state.matter.gte(state.dimensions[6].cost)) buyDimension(6);
+    if (state.autobuyers.dim8?.active) while (state.matter.gte(state.dimensions[7].cost)) buyDimension(7);
     if (state.autobuyers.tick.active) while (state.matter.gte(state.tickspeed.cost)) buyTickspeed();
+    if (state.autobuyers.boost?.active) buyDimBoost();
+    if (state.autobuyers.galaxy?.active) buyGalaxy();
 }
 
 function processGameTick() {
@@ -242,11 +262,6 @@ function processGameTick() {
     if (state.matter.gt(state.stats.peakMatter)) {
         state.stats.peakMatter = new Decimal(state.matter); 
     }
-
-    if (state.bank.deposited.gt(0)) {
-        let interestRate = state.prestigeUpgrades.upg4 ? 0.03 : 0.01;
-        state.bank.deposited = state.bank.deposited.add(state.bank.deposited.mul(interestRate));
-    }
 }
 
 function simulateOfflineProgress(timeAwayMs) {
@@ -254,6 +269,17 @@ function simulateOfflineProgress(timeAwayMs) {
     let actualSimMs = Math.min(timeAwayMs, MAX_OFFLINE_MS);
     let currentInterval = getTickInterval();
     let ticksToSimulate = Math.floor(actualSimMs / currentInterval);
+
+    state.bank.timeSinceInterest += actualSimMs;
+    while (state.bank.timeSinceInterest >= 60000) {
+        if (state.bank.deposited.gt(0)) {
+            let interestRate = state.prestigeUpgrades.upg4 ? 0.03 : 0.01;
+            let interest = state.bank.deposited.mul(interestRate);
+            state.bank.deposited = state.bank.deposited.add(interest);
+            state.stats.totalMatterProduced = state.stats.totalMatterProduced.add(interest);
+        }
+        state.bank.timeSinceInterest -= 60000;
+    }
 
     if (ticksToSimulate <= 0) return;
     
@@ -270,12 +296,56 @@ function simulateOfflineProgress(timeAwayMs) {
     state.stats.totalPlaytimeMs += actualSimMs;
     state.stats.timeInCurrentUniverseMs += actualSimMs;
 
+    checkLimits();
+
     let gainedMatter = state.matter.sub(startMatter);
     console.log(`Ending Matter: ${format(state.matter)} (+${format(gainedMatter)})`);
 
     if (timeAwayMs > 60000 && typeof showOfflineModal === 'function') {
         showOfflineModal(timeAwayMs, actualSimMs, ticksToSimulate, gainedMatter);
     }
+}
+
+function supernova() {
+    state.cosmicShards = state.cosmicShards.add(1);
+    state.stats.supernovas += 1;
+    logGame(`SUPERNOVA! Gained 1 Cosmic Shard.`);
+    
+    let defaults = getDefaultState();
+    state.matter = new Decimal(10);
+    state.prestigePoints = new Decimal(0);
+    state.prestigeUpgrades = defaults.prestigeUpgrades;
+    state.autobuyers = defaults.autobuyers;
+    state.bank.deposited = new Decimal(0);
+    state.bank.timeSinceInterest = 0;
+    state.galaxies = 0;
+    state.dimBoosts = 0;
+    resetForBoostOrGalaxy();
+    
+    if (typeof renderShop === 'function') renderShop();
+    if (typeof renderDimensions === 'function') renderDimensions();
+    if (typeof showSupernovaModal === 'function') showSupernovaModal();
+    if (typeof updateUI === 'function') updateUI();
+}
+
+function checkLimits() {
+    const INFINITY = new Decimal("1.7976931348623157e308");
+    if (state.matter.gte(INFINITY)) {
+        logGame(`Matter reached infinity. Forcing Big Crunch.`);
+        prestige(true);
+    }
+    if (state.prestigePoints.gte(INFINITY)) {
+        logGame(`Prestige Points reached infinity. Forcing Supernova.`);
+        supernova();
+    }
+}
+
+function runAntiCheat() {
+    if (state.matter.gt(state.stats.totalMatterProduced.add(10))) window.isCheater = true;
+    if (state.prestigePoints.gt(state.stats.totalPPEarned)) window.isCheater = true;
+    if (state.cosmicShards.gt(state.stats.supernovas)) window.isCheater = true;
+    
+    if (isNaN(state.matter.e) || isNaN(state.prestigePoints.e) || isNaN(state.cosmicShards.e)) window.isCheater = true;
 }
 
 function gameLoop() {
@@ -306,6 +376,20 @@ function gameLoop() {
         processGameTick();
         state.tickProgressMs -= currentInterval;
     }
+
+    state.bank.timeSinceInterest += delta;
+    while (state.bank.timeSinceInterest >= 60000) {
+        if (state.bank.deposited.gt(0)) {
+            let interestRate = state.prestigeUpgrades.upg4 ? 0.03 : 0.01;
+            let interest = state.bank.deposited.mul(interestRate);
+            state.bank.deposited = state.bank.deposited.add(interest);
+            state.stats.totalMatterProduced = state.stats.totalMatterProduced.add(interest);
+        }
+        state.bank.timeSinceInterest -= 60000;
+    }
+
+    checkLimits();
+    runAntiCheat();
 
     state.lastRenderTime = now;
     if (typeof updateUI === 'function') updateUI();

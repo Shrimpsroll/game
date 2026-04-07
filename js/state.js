@@ -26,10 +26,19 @@ function getDefaultState() {
         autobuyers: {
             dim1: { unlocked: false, active: false, cost: 10000 },
             dim2: { unlocked: false, active: false, cost: 50000 },
-            tick: { unlocked: false, active: false, cost: 250000 }
+            dim3: { unlocked: false, active: false, cost: 100000 },
+            tick: { unlocked: false, active: false, cost: 250000 },
+            dim4: { unlocked: false, active: false, cost: 500000 },
+            dim5: { unlocked: false, active: false, cost: 1000000 },
+            dim6: { unlocked: false, active: false, cost: 2500000 },
+            dim7: { unlocked: false, active: false, cost: 5000000 },
+            dim8: { unlocked: false, active: false, cost: 10000000 },
+            boost: { unlocked: false, active: false, cost: 50000000 },
+            galaxy: { unlocked: false, active: false, cost: 100000000 }
         },
         
-        bank: { deposited: new Decimal(0) },
+        bank: { deposited: new Decimal(0), timeSinceInterest: 0 },
+        cosmicShards: new Decimal(0),
         
         // ALL 12 STATS
         stats: { 
@@ -45,7 +54,8 @@ function getDefaultState() {
             totalDimsBought: 0,
             totalTicksBought: 0,
             totalBankTaxPaid: new Decimal(0),
-            totalOfflineMs: 0
+            totalOfflineMs: 0,
+            supernovas: 0
         },
         
         lastRenderTime: Date.now(),
@@ -76,6 +86,8 @@ function deserializeState(jsonString) {
         state.tickspeed.level = parsed.tickspeed?.level || 0;
         state.tickspeed.cost = new Decimal(parsed.tickspeed?.cost || 1000);
         state.bank.deposited = new Decimal(parsed.bank?.deposited || 0);
+        state.bank.timeSinceInterest = parsed.bank?.timeSinceInterest || 0;
+        state.cosmicShards = new Decimal(parsed.cosmicShards || 0);
         
         // BULLETPROOF STATS LOADER (Prevents old saves from causing NaN errors)
         state.stats.startTime = parsed.stats?.startTime || defaults.stats.startTime;
@@ -87,6 +99,7 @@ function deserializeState(jsonString) {
         state.stats.totalDimsBought = parsed.stats?.totalDimsBought || 0;
         state.stats.totalTicksBought = parsed.stats?.totalTicksBought || 0;
         state.stats.totalOfflineMs = parsed.stats?.totalOfflineMs || 0;
+        state.stats.supernovas = parsed.stats?.supernovas || 0;
 
         state.stats.totalMatterProduced = new Decimal(parsed.stats?.totalMatterProduced || 10);
         state.stats.peakMatter = new Decimal(parsed.stats?.peakMatter || 10);

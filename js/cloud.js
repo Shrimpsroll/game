@@ -113,17 +113,36 @@ async function submitToLeaderboard() {
 async function fetchLeaderboardData() {
     const { data, error } = await supabaseClient
         .from('user_saves')
-        .select('nickname, matter_exponent')
+        .select('nickname, matter_exponent, save_data')
         .eq('is_cheater', false)
         .eq('is_public', true)
-        .order('matter_exponent', { ascending: false })
-        .limit(10);
+        .limit(1000);
 
     if (error) {
         console.error("Leaderboard fetch error:", error);
         return [];
     }
-    return data;
+    
+    // Sort primarily by Cosmic Shards, then Prestige Points, then Matter Exponent
+    data.sort((a, b) => {
+        let parseData = (save) => typeof save === 'string' ? JSON.parse(save) : save;
+        let aSave = a.save_data ? parseData(a.save_data) : {};
+        let bSave = b.save_data ? parseData(b.save_data) : {};
+
+        let aCS = new Decimal(aSave.cosmicShards || 0);
+        let bCS = new Decimal(bSave.cosmicShards || 0);
+        if (!aCS.eq(bCS)) return bCS.cmp(aCS); 
+
+        let aPP = new Decimal(aSave.prestigePoints || 0);
+        let bPP = new Decimal(bSave.prestigePoints || 0);
+        if (!aPP.eq(bPP)) return bPP.cmp(aPP); 
+
+        let aMatter = a.matter_exponent || 0;
+        let bMatter = b.matter_exponent || 0;
+        return bMatter - aMatter;
+    });
+    
+    return data.slice(0, 10);
 }
 
 async function loadSharedCode() {
@@ -189,4 +208,3 @@ async function submitNewsBroadcast() {
         fetchGlobalNews(); // Grab the new message immediately
     }
 }
-

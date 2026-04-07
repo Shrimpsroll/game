@@ -107,7 +107,15 @@ function renderShop() {
     const abs = [
         { id: 'dim1', name: 'Dimension 1 Autobuyer', ref: state.autobuyers.dim1 },
         { id: 'dim2', name: 'Dimension 2 Autobuyer', ref: state.autobuyers.dim2 },
-        { id: 'tick', name: 'Tickspeed Autobuyer', ref: state.autobuyers.tick }
+        { id: 'dim3', name: 'Dimension 3 Autobuyer', ref: state.autobuyers.dim3 },
+        { id: 'tick', name: 'Tickspeed Autobuyer', ref: state.autobuyers.tick },
+        { id: 'dim4', name: 'Dimension 4 Autobuyer', ref: state.autobuyers.dim4 },
+        { id: 'dim5', name: 'Dimension 5 Autobuyer', ref: state.autobuyers.dim5 },
+        { id: 'dim6', name: 'Dimension 6 Autobuyer', ref: state.autobuyers.dim6 },
+        { id: 'dim7', name: 'Dimension 7 Autobuyer', ref: state.autobuyers.dim7 },
+        { id: 'dim8', name: 'Dimension 8 Autobuyer', ref: state.autobuyers.dim8 },
+        { id: 'boost', name: 'Dimension Boost Autobuyer', ref: state.autobuyers.boost },
+        { id: 'galaxy', name: 'Antimatter Galaxy Autobuyer', ref: state.autobuyers.galaxy }
     ];
 
     abContainer.innerHTML = '';
@@ -128,6 +136,29 @@ function updateUI() {
     if (state.stats.prestiges > 0) {
         document.getElementById('pp-header').classList.remove('hidden');
         document.getElementById('pp-display').innerText = format(state.prestigePoints);
+        
+        if (state.cosmicShards.gt(0)) {
+            let csEl = document.getElementById('cosmic-shards-display');
+            if (!csEl) {
+                let ppHeader = document.getElementById('pp-header');
+                if (ppHeader) {
+                    ppHeader.insertAdjacentHTML('afterend', `<h3 id="cs-header" style="color:#b341e0; margin-top: 10px;">Cosmic Shards: <span id="cosmic-shards-display"></span></h3>`);
+                    csEl = document.getElementById('cosmic-shards-display');
+                }
+            }
+            if (csEl) csEl.innerText = format(state.cosmicShards);
+        }
+    }
+    
+    if (state.stats.supernovas > 0 || state.cosmicShards.gt(0)) {
+        initSupernovaUI();
+        let snBtn = document.getElementById('supernova-tab-btn');
+        if (snBtn) {
+            snBtn.classList.remove('hidden');
+            snBtn.style.display = 'inline-block';
+        }
+        let csTabDisp = document.getElementById('cs-tab-display');
+        if (csTabDisp) csTabDisp.innerText = format(state.cosmicShards);
     }
     
     let upg1El = document.getElementById('upg1-current-mult');
@@ -269,13 +300,13 @@ async function updateLeaderboardUI() {
     const tbody = document.getElementById('leaderboard-body');
     if (!tbody) return;
     
-    tbody.innerHTML = '<tr><td colspan="3" style="color: #888;">Connecting to Supabase...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="color: #888;">Connecting to Supabase...</td></tr>';
     
     const data = await fetchLeaderboardData(); 
     tbody.innerHTML = ''; 
     
     if (!data || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3">No public scores yet. Be the first!</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5">No public scores yet. Be the first!</td></tr>';
         return;
     }
 
@@ -284,12 +315,95 @@ async function updateLeaderboardUI() {
         let rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
         let displayName = player.nickname || 'Unknown Player';
         let exponentDisplay = `1e${Math.floor(player.matter_exponent)}`;
+        
+        let pp = new Decimal(0);
+        let cs = new Decimal(0);
+        if (player.save_data) {
+            let parsed = typeof player.save_data === 'string' ? JSON.parse(player.save_data) : player.save_data;
+            pp = new Decimal(parsed.prestigePoints || 0);
+            cs = new Decimal(parsed.cosmicShards || 0);
+        }
 
         tr.innerHTML = `
             <td class="${rankClass}">#${index + 1}</td>
             <td style="font-weight: bold;">${displayName}</td>
             <td class="${rankClass}">${exponentDisplay}</td>
+            <td class="${rankClass}">${format(pp)}</td>
+            <td class="${rankClass}">${format(cs)}</td>
         `;
         tbody.appendChild(tr);
     });
+}
+
+let supernovaUIInitialized = false;
+
+function initSupernovaUI() {
+    if (supernovaUIInitialized) return;
+    supernovaUIInitialized = true;
+
+    // 1. Inject Tab Button dynamically next to existing tabs
+    let firstTab = document.querySelector('.tab-btn');
+    if (firstTab && firstTab.parentNode) {
+        let snBtn = document.createElement('button');
+        snBtn.className = 'tab-btn hidden';
+        snBtn.dataset.tab = 'supernova-tab';
+        snBtn.id = 'supernova-tab-btn';
+        snBtn.innerText = 'Supernova';
+        snBtn.style.color = '#b341e0';
+        snBtn.style.fontWeight = 'bold';
+        snBtn.style.display = 'none'; 
+        
+        snBtn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn, .tab-content').forEach(e => e.classList.remove('active'));
+            snBtn.classList.add('active');
+            let content = document.getElementById('supernova-tab');
+            if (content) content.classList.add('active');
+        });
+        firstTab.parentNode.appendChild(snBtn);
+    }
+
+    // 2. Inject Tab Content dynamically into the tab container
+    let firstContent = document.querySelector('.tab-content');
+    if (firstContent && firstContent.parentNode) {
+        let snContent = document.createElement('div');
+        snContent.id = 'supernova-tab';
+        snContent.className = 'tab-content';
+        snContent.innerHTML = `
+            <h2 style="color: #b341e0;">Supernova</h2>
+            <p>You have <strong id="cs-tab-display" style="color:#b341e0; font-size:1.2em;">0</strong> Cosmic Shards.</p>
+            <div style="margin-top: 20px; padding: 20px; background: #222; border: 1px solid #b341e0; border-radius: 5px;">
+                <p style="color: #aaa; text-align: center;">The fabric of reality has torn. Cosmic upgrades will be available in a future update.</p>
+            </div>
+        `;
+        firstContent.parentNode.appendChild(snContent);
+    }
+
+    // 3. Inject Modal dynamically into the body
+    let modalHtml = `
+        <div id="supernova-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; display: none; justify-content: center; align-items: center; text-align: center;">
+            <div style="background: #111; border: 2px solid #b341e0; padding: 40px; border-radius: 10px; box-shadow: 0 0 30px #b341e0;">
+                <h1 style="color: #b341e0; font-size: 3em; margin-bottom: 10px;">SUPERNOVA!</h1>
+                <p style="font-size: 1.2em; color: #ddd;">Prestige Points reached infinity.</p>
+                <p style="font-size: 1.2em; color: #ddd; margin-bottom: 30px;">Your universe has collapsed, but you gained:</p>
+                <h2 style="color: #fff; margin-bottom: 30px;">1x <span style="color: #b341e0;">Cosmic Shard</span></h2>
+                <button id="btn-close-supernova" style="background: #b341e0; color: white; border: none; padding: 10px 20px; font-size: 1.2em; cursor: pointer; border-radius: 5px;">Acknowledge</button>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    document.getElementById('btn-close-supernova').addEventListener('click', () => {
+        let modal = document.getElementById('supernova-modal');
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    });
+}
+
+function showSupernovaModal() {
+    initSupernovaUI();
+    let modal = document.getElementById('supernova-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+    }
 }
